@@ -504,6 +504,10 @@ export const useDashboardStore = defineStore("dashboard", () => {
     }
   }
 
+  function setFullscreen(value: boolean) {
+    isFullscreen.value = value
+  }
+
   function startCarousel(interval: number = 10000) {
     stopCarousel();
     if (dashboards.value.length === 0) return;
@@ -563,6 +567,7 @@ export const useDashboardStore = defineStore("dashboard", () => {
     deleteCard,
     duplicateCard,
     toggleFullscreen,
+    setFullscreen,
     startCarousel,
     stopCarousel,
     exportConfig,
