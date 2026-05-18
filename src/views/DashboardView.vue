@@ -129,6 +129,7 @@ const route = useRoute();
 const router = useRouter();
 const dashboardStore = useDashboardStore();
 const dataStore = useDataStore();
+const dataSourceStore = useDataSourceStore();
 const themeStore = useThemeStore();
 
 const dashboardRef = ref<HTMLElement>();
