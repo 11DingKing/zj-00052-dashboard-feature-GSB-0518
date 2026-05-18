@@ -50,7 +50,7 @@
         :is-mirrored="false"
         :vertical-compact="true"
         :margin="[10, 10]"
-        :use-css-transforms="true"
+        :use-css-transforms="!isExporting"
       >
         <grid-item
           v-for="item in layout"
@@ -113,7 +113,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { GridLayout, GridItem } from "vue-grid-layout";
 import html2canvas from "html2canvas";
@@ -129,6 +129,7 @@ const route = useRoute();
 const router = useRouter();
 const dashboardStore = useDashboardStore();
 const dataStore = useDataStore();
+const dataSourceStore = useDataSourceStore();
 const themeStore = useThemeStore();
 
 const dashboardRef = ref<HTMLElement>();
@@ -136,6 +137,7 @@ const showConfig = ref(false);
 const selectedCard = ref<CardConfig | null>(null);
 const showImport = ref(false);
 const importText = ref("");
+const isExporting = ref(false);
 
 const cardTypes = [
   { label: "折线图", value: "line" as CardType, icon: "📈" },
@@ -190,7 +192,15 @@ onMounted(() => {
   if (id) {
     dashboardStore.setCurrentDashboard(id);
   }
+
+  document.addEventListener("fullscreenchange", handleFullscreenChange);
 });
+
+function handleFullscreenChange() {
+  if (!document.fullscreenElement) {
+    dashboardStore.setFullscreen(false);
+  }
+}
 
 watch(
   () => dashboardStore.dashboards,
@@ -209,6 +219,7 @@ watch(
 onUnmounted(() => {
   dashboardStore.stopCarousel();
   dashboardStore.setEditMode(false);
+  document.removeEventListener("fullscreenchange", handleFullscreenChange);
 });
 
 function getCardById(id: string): CardConfig | undefined {
@@ -285,9 +296,12 @@ function stopCarousel() {
 async function exportScreenshot() {
   if (!dashboardRef.value) return;
   try {
+    isExporting.value = true;
+    await nextTick();
     const canvas = await html2canvas(dashboardRef.value, {
       backgroundColor: isDark.value ? "#1a1a2e" : "#ffffff",
       scale: 2,
+      useCORS: true,
     });
     const link = document.createElement("a");
     link.download = `${dashboard.value?.name || "dashboard"}.png`;
@@ -295,6 +309,8 @@ async function exportScreenshot() {
     link.click();
   } catch (e) {
     console.error("截图失败:", e);
+  } finally {
+    isExporting.value = false;
   }
 }
 
