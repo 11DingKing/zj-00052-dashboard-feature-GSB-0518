@@ -297,20 +297,48 @@ function stopCarousel() {
 
 async function exportScreenshot() {
   if (!dashboardRef.value) return;
+  const replacements: { canvas: HTMLCanvasElement; img: HTMLImageElement; parent: Node; next: Node | null }[] = [];
   try {
     useCssTransforms.value = false;
     await new Promise((r) => setTimeout(r, 300));
+
+    const canvases = dashboardRef.value.querySelectorAll("canvas");
+    canvases.forEach((c) => {
+      const img = document.createElement("img");
+      img.src = c.toDataURL("image/png");
+      img.style.width = c.offsetWidth + "px";
+      img.style.height = c.offsetHeight + "px";
+      img.style.display = "block";
+      const parent = c.parentNode!;
+      const next = c.nextSibling;
+      parent.replaceChild(img, c);
+      replacements.push({ canvas: c, img, parent, next });
+    });
+
     const canvas = await html2canvas(dashboardRef.value, {
       backgroundColor: isDark.value ? "#1a1a2e" : "#ffffff",
       useCORS: true,
       scale: 2,
     });
+
+    replacements.forEach(({ canvas, img, parent, next }) => {
+      parent.insertBefore(canvas, next);
+      parent.removeChild(img);
+    });
+    replacements.length = 0;
+
     useCssTransforms.value = true;
     const link = document.createElement("a");
     link.download = `${dashboard.value?.name || "dashboard"}.png`;
     link.href = canvas.toDataURL();
     link.click();
   } catch (e) {
+    replacements.forEach(({ canvas, img, parent, next }) => {
+      if (img.parentNode) {
+        parent.insertBefore(canvas, next);
+        parent.removeChild(img);
+      }
+    });
     useCssTransforms.value = true;
     console.error("截图失败:", e);
   }
