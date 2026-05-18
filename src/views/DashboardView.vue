@@ -50,7 +50,7 @@
         :is-mirrored="false"
         :vertical-compact="true"
         :margin="[10, 10]"
-        :use-css-transforms="true"
+        :use-css-transforms="useCssTransforms"
       >
         <grid-item
           v-for="item in layout"
@@ -113,7 +113,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch, provide } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { GridLayout, GridItem } from "vue-grid-layout";
 import html2canvas from "html2canvas";
@@ -136,6 +136,7 @@ const showConfig = ref(false);
 const selectedCard = ref<CardConfig | null>(null);
 const showImport = ref(false);
 const importText = ref("");
+const useCssTransforms = ref(true);
 
 const cardTypes = [
   { label: "折线图", value: "line" as CardType, icon: "📈" },
@@ -152,6 +153,8 @@ const dashboard = computed(() => dashboardStore.currentDashboard);
 const isEditMode = computed(() => dashboardStore.isEditMode);
 const isFullscreen = computed(() => dashboardStore.isFullscreen);
 const isDark = computed(() => themeStore.isDark);
+
+provide("isDark", isDark);
 
 const layout = computed({
   get: () =>
@@ -190,6 +193,8 @@ onMounted(() => {
   if (id) {
     dashboardStore.setCurrentDashboard(id);
   }
+
+  document.addEventListener("fullscreenchange", onFullscreenChange);
 });
 
 watch(
@@ -209,10 +214,18 @@ watch(
 onUnmounted(() => {
   dashboardStore.stopCarousel();
   dashboardStore.setEditMode(false);
+  document.removeEventListener("fullscreenchange", onFullscreenChange);
 });
 
 function getCardById(id: string): CardConfig | undefined {
   return dashboard.value?.cards.find((c) => c.id === id);
+}
+
+function onFullscreenChange() {
+  if (!document.fullscreenElement && dashboardStore.isFullscreen) {
+    dashboardStore.isFullscreen = false;
+    dashboardStore.stopCarousel();
+  }
 }
 
 function getCardData(card: CardConfig) {
@@ -285,15 +298,20 @@ function stopCarousel() {
 async function exportScreenshot() {
   if (!dashboardRef.value) return;
   try {
+    useCssTransforms.value = false;
+    await new Promise((r) => setTimeout(r, 300));
     const canvas = await html2canvas(dashboardRef.value, {
       backgroundColor: isDark.value ? "#1a1a2e" : "#ffffff",
+      useCORS: true,
       scale: 2,
     });
+    useCssTransforms.value = true;
     const link = document.createElement("a");
     link.download = `${dashboard.value?.name || "dashboard"}.png`;
     link.href = canvas.toDataURL();
     link.click();
   } catch (e) {
+    useCssTransforms.value = true;
     console.error("截图失败:", e);
   }
 }

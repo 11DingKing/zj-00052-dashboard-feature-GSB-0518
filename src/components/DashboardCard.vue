@@ -1,7 +1,7 @@
 <template>
   <div
     class="dashboard-card"
-    :class="{ locked: config.locked, alert: hasAlert }"
+    :class="{ locked: config.locked, alert: hasAlert, dark: isDark }"
   >
     <div v-if="hasAlert" class="alert-indicator">
       <span class="alert-blink">⚠️</span>
@@ -17,12 +17,17 @@
         🗑️
       </button>
     </div>
-    <component :is="cardComponent" :config="config" :data="cardData" />
+    <component
+      :is="cardComponent"
+      :config="config"
+      :data="cardData"
+      :is-dark="isDark"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, inject } from "vue";
 import type { CardConfig } from "@/types";
 import LineChartCard from "./cards/LineChartCard.vue";
 import BarChartCard from "./cards/BarChartCard.vue";
@@ -40,6 +45,8 @@ const props = defineProps<{
 }>();
 
 defineEmits(["configure", "duplicate", "delete"]);
+
+const isDark = inject<boolean>("isDark", false);
 
 const cardComponent = computed(() => {
   const components: Record<string, any> = {
