@@ -18,6 +18,7 @@ import type { CardConfig } from '@/types'
 const props = defineProps<{
   config: CardConfig
   data: Array<{ name: string; value: number }>
+  isDark?: boolean
 }>()
 
 const displayData = computed(() => {

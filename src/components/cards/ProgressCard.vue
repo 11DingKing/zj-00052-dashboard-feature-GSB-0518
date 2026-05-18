@@ -23,6 +23,7 @@ import type { CardConfig } from '@/types'
 const props = defineProps<{
   config: CardConfig
   data: any[]
+  isDark?: boolean
 }>()
 
 const progress = computed(() => {

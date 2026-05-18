@@ -25,11 +25,14 @@ use([
 const props = defineProps<{
   config: CardConfig
   data: any[]
+  isDark?: boolean
 }>()
 
 const chartOption = computed(() => {
   const data = props.data || []
+  const bgColor = props.isDark ? 'transparent' : 'transparent'
   return {
+    backgroundColor: bgColor,
     title: {
       text: props.config.title,
       left: 'center',

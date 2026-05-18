@@ -25,12 +25,14 @@ use([
 const props = defineProps<{
   config: CardConfig
   data: any[]
+  isDark?: boolean
 }>()
 
 const chartOption = computed(() => {
   const data = props.data || []
   const categories = ['pending', 'completed', 'cancelled']
   return {
+    backgroundColor: 'transparent',
     title: {
       text: props.config.title,
       left: 'center',
