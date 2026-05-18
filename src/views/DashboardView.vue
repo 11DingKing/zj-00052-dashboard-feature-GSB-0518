@@ -50,7 +50,7 @@
         :is-mirrored="false"
         :vertical-compact="true"
         :margin="[10, 10]"
-        :use-css-transforms="true"
+        :use-css-transforms="useCssTransforms"
       >
         <grid-item
           v-for="item in layout"
@@ -136,6 +136,7 @@ const showConfig = ref(false);
 const selectedCard = ref<CardConfig | null>(null);
 const showImport = ref(false);
 const importText = ref("");
+const useCssTransforms = ref(true);
 
 const cardTypes = [
   { label: "折线图", value: "line" as CardType, icon: "📈" },
@@ -182,6 +183,13 @@ const layout = computed({
   },
 });
 
+function handleFullscreenChange() {
+  const isCurrentlyFullscreen = !!document.fullscreenElement;
+  if (dashboardStore.isFullscreen !== isCurrentlyFullscreen) {
+    dashboardStore.isFullscreen = isCurrentlyFullscreen;
+  }
+}
+
 onMounted(() => {
   dashboardStore.initializePresets();
   dataSourceStore.initializeDefaults();
@@ -190,6 +198,8 @@ onMounted(() => {
   if (id) {
     dashboardStore.setCurrentDashboard(id);
   }
+
+  document.addEventListener("fullscreenchange", handleFullscreenChange);
 });
 
 watch(
@@ -209,6 +219,7 @@ watch(
 onUnmounted(() => {
   dashboardStore.stopCarousel();
   dashboardStore.setEditMode(false);
+  document.removeEventListener("fullscreenchange", handleFullscreenChange);
 });
 
 function getCardById(id: string): CardConfig | undefined {
@@ -285,9 +296,13 @@ function stopCarousel() {
 async function exportScreenshot() {
   if (!dashboardRef.value) return;
   try {
+    useCssTransforms.value = false;
+    await new Promise((resolve) => setTimeout(resolve, 100));
     const canvas = await html2canvas(dashboardRef.value, {
       backgroundColor: isDark.value ? "#1a1a2e" : "#ffffff",
       scale: 2,
+      useCORS: true,
+      logging: false,
     });
     const link = document.createElement("a");
     link.download = `${dashboard.value?.name || "dashboard"}.png`;
@@ -295,6 +310,8 @@ async function exportScreenshot() {
     link.click();
   } catch (e) {
     console.error("截图失败:", e);
+  } finally {
+    useCssTransforms.value = true;
   }
 }
 
