@@ -296,8 +296,26 @@ function stopCarousel() {
 async function exportScreenshot() {
   if (!dashboardRef.value) return;
   try {
-    isExporting.value = true;
-    await nextTick();
+    isExporting.value = true
+    await nextTick()
+
+    const canvasMap = new Map<HTMLCanvasElement, HTMLImageElement>()
+    const canvases = dashboardRef.value.querySelectorAll('canvas')
+    canvases.forEach((canvas) => {
+      const dataUrl = canvas.toDataURL('image/png')
+      const img = document.createElement('img')
+      img.src = dataUrl
+      img.style.width = canvas.clientWidth + 'px'
+      img.style.height = canvas.clientHeight + 'px'
+      img.style.display = 'block'
+      img.dataset.restore = 'true'
+      if (canvas.parentNode) {
+        canvas.parentNode.replaceChild(img, canvas)
+        canvasMap.set(canvas, img)
+      }
+    })
+    await nextTick()
+
     const canvas = await html2canvas(dashboardRef.value, {
       backgroundColor: isDark.value ? "#1a1a2e" : "#ffffff",
       scale: 2,
@@ -307,10 +325,16 @@ async function exportScreenshot() {
     link.download = `${dashboard.value?.name || "dashboard"}.png`;
     link.href = canvas.toDataURL();
     link.click();
+
+    canvasMap.forEach((img, originalCanvas) => {
+      if (img.parentNode) {
+        img.parentNode.replaceChild(originalCanvas, img)
+      }
+    })
   } catch (e) {
     console.error("截图失败:", e);
   } finally {
-    isExporting.value = false;
+    isExporting.value = false
   }
 }
 
