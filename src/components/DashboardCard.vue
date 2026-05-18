@@ -175,17 +175,18 @@ const hasAlert = computed(() => {
   height: 28px;
   border: none;
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--card-bg);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 14px;
   transition: background 0.2s;
+  border: 1px solid var(--border-color);
 }
 
 .action-btn:hover {
-  background: #f0f0f0;
+  background: var(--border-color);
 }
 
 .chart-card {

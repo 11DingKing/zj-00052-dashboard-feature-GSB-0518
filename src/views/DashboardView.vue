@@ -50,7 +50,7 @@
         :is-mirrored="false"
         :vertical-compact="true"
         :margin="[10, 10]"
-        :use-css-transforms="true"
+        :use-css-transforms="useCssTransforms"
       >
         <grid-item
           v-for="item in layout"
@@ -113,7 +113,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { GridLayout, GridItem } from "vue-grid-layout";
 import html2canvas from "html2canvas";
@@ -129,6 +129,7 @@ const route = useRoute();
 const router = useRouter();
 const dashboardStore = useDashboardStore();
 const dataStore = useDataStore();
+const dataSourceStore = useDataSourceStore();
 const themeStore = useThemeStore();
 
 const dashboardRef = ref<HTMLElement>();
@@ -136,6 +137,7 @@ const showConfig = ref(false);
 const selectedCard = ref<CardConfig | null>(null);
 const showImport = ref(false);
 const importText = ref("");
+const useCssTransforms = ref(true);
 
 const cardTypes = [
   { label: "折线图", value: "line" as CardType, icon: "📈" },
@@ -182,6 +184,13 @@ const layout = computed({
   },
 });
 
+function handleFullscreenChange() {
+  const isCurrentlyFullscreen = !!document.fullscreenElement;
+  if (dashboardStore.isFullscreen !== isCurrentlyFullscreen) {
+    dashboardStore.isFullscreen = isCurrentlyFullscreen;
+  }
+}
+
 onMounted(() => {
   dashboardStore.initializePresets();
   dataSourceStore.initializeDefaults();
@@ -190,6 +199,8 @@ onMounted(() => {
   if (id) {
     dashboardStore.setCurrentDashboard(id);
   }
+
+  document.addEventListener("fullscreenchange", handleFullscreenChange);
 });
 
 watch(
@@ -209,6 +220,7 @@ watch(
 onUnmounted(() => {
   dashboardStore.stopCarousel();
   dashboardStore.setEditMode(false);
+  document.removeEventListener("fullscreenchange", handleFullscreenChange);
 });
 
 function getCardById(id: string): CardConfig | undefined {
@@ -284,17 +296,62 @@ function stopCarousel() {
 
 async function exportScreenshot() {
   if (!dashboardRef.value) return;
+  const replacements: Array<{
+    canvas: HTMLCanvasElement;
+    img: HTMLImageElement;
+  }> = [];
   try {
-    const canvas = await html2canvas(dashboardRef.value, {
+    useCssTransforms.value = false;
+    await nextTick();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    const canvases = dashboardRef.value.querySelectorAll("canvas");
+    canvases.forEach((canvas) => {
+      try {
+        const dataUrl = canvas.toDataURL("image/png");
+        const img = document.createElement("img");
+        img.src = dataUrl;
+        img.style.width = canvas.style.width || `${canvas.width / 2}px`;
+        img.style.height = canvas.style.height || `${canvas.height / 2}px`;
+        img.style.display = "block";
+        const parent = canvas.parentNode;
+        if (parent) {
+          parent.replaceChild(img, canvas);
+          replacements.push({ canvas, img });
+        }
+      } catch (e) {
+        console.warn("Canvas 转图片失败:", e);
+      }
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    const targetElement =
+      dashboardRef.value.querySelector(".vue-grid-layout") ||
+      dashboardRef.value;
+    const canvas = await html2canvas(targetElement as HTMLElement, {
       backgroundColor: isDark.value ? "#1a1a2e" : "#ffffff",
       scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      foreignObjectRendering: false,
+      logging: false,
     });
+
     const link = document.createElement("a");
     link.download = `${dashboard.value?.name || "dashboard"}.png`;
     link.href = canvas.toDataURL();
     link.click();
   } catch (e) {
     console.error("截图失败:", e);
+  } finally {
+    replacements.forEach(({ canvas, img }) => {
+      const parent = img.parentNode;
+      if (parent) {
+        parent.replaceChild(canvas, img);
+      }
+    });
+    useCssTransforms.value = true;
   }
 }
 
