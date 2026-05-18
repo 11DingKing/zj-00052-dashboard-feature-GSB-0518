@@ -113,7 +113,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { GridLayout, GridItem } from "vue-grid-layout";
 import html2canvas from "html2canvas";
@@ -295,15 +295,48 @@ function stopCarousel() {
 
 async function exportScreenshot() {
   if (!dashboardRef.value) return;
+  const replacements: Array<{
+    canvas: HTMLCanvasElement;
+    img: HTMLImageElement;
+  }> = [];
   try {
     useCssTransforms.value = false;
+    await nextTick();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    const canvases = dashboardRef.value.querySelectorAll("canvas");
+    canvases.forEach((canvas) => {
+      try {
+        const dataUrl = canvas.toDataURL("image/png");
+        const img = document.createElement("img");
+        img.src = dataUrl;
+        img.style.width = canvas.style.width || `${canvas.width / 2}px`;
+        img.style.height = canvas.style.height || `${canvas.height / 2}px`;
+        img.style.display = "block";
+        const parent = canvas.parentNode;
+        if (parent) {
+          parent.replaceChild(img, canvas);
+          replacements.push({ canvas, img });
+        }
+      } catch (e) {
+        console.warn("Canvas 转图片失败:", e);
+      }
+    });
+
     await new Promise((resolve) => setTimeout(resolve, 100));
-    const canvas = await html2canvas(dashboardRef.value, {
+
+    const targetElement =
+      dashboardRef.value.querySelector(".vue-grid-layout") ||
+      dashboardRef.value;
+    const canvas = await html2canvas(targetElement as HTMLElement, {
       backgroundColor: isDark.value ? "#1a1a2e" : "#ffffff",
       scale: 2,
       useCORS: true,
+      allowTaint: true,
+      foreignObjectRendering: false,
       logging: false,
     });
+
     const link = document.createElement("a");
     link.download = `${dashboard.value?.name || "dashboard"}.png`;
     link.href = canvas.toDataURL();
@@ -311,6 +344,12 @@ async function exportScreenshot() {
   } catch (e) {
     console.error("截图失败:", e);
   } finally {
+    replacements.forEach(({ canvas, img }) => {
+      const parent = img.parentNode;
+      if (parent) {
+        parent.replaceChild(canvas, img);
+      }
+    });
     useCssTransforms.value = true;
   }
 }
